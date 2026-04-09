@@ -22,7 +22,6 @@ A lightweight userscript that automatically converts product prices on **Taobao 
 This project is open-source and available under the [MIT License](LICENSE).
 <br><br><br><br>
 #  Global KRW Converter (Taobao & AliExpress)
-
 타오바오(위안화)와 알리익스프레스(달러) 가격을 실시간 환율을 반영하여 **한국 원화(KRW)**로 변환해 주는 유저스크립트입니다.
 
 ##  주요 기능
