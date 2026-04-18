@@ -2958,53 +2958,54 @@ context.l
     });
   }
   let currentRate = 0;
-  let currentSite = "";
-  function startConversion(rate, siteType) {
+  function startConversion(rate) {
     currentRate = rate;
-    currentSite = siteType;
     convertDOM(document.body);
     const observer = new MutationObserver((mutations) => {
+      const wrappersToReconvert = new Set();
       for (let mutation of mutations) {
-        for (let node of mutation.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            convertDOM(node);
+        if (mutation.type === "childList") {
+          for (let node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE && !
+node.dataset.krw) {
+              convertDOM(
+node
+              );
+            }
+          }
+        } else if (mutation.type === "characterData") {
+          let parent = (
+mutation.target.parentNode
+          );
+          while (parent && parent !== document.body) {
+            if (
+parent.dataset?.converted
+            ) {
+              wrappersToReconvert.add(
+parent
+              );
+              break;
+            }
+            parent = parent.parentNode;
           }
         }
       }
+      wrappersToReconvert.forEach((wrapper) => reconvert(wrapper));
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+});
+  }
+  function reconvert(priceWrapper) {
+    const existingKrwSpan = priceWrapper.querySelector('[data-krw="true"]');
+    if (existingKrwSpan) existingKrwSpan.remove();
+    delete priceWrapper.dataset.converted;
+    convertSingleWrapper(priceWrapper);
   }
   function convertDOM(rootNode) {
     if (!rootNode.querySelectorAll) return;
-    if (currentSite === "taobao") {
-      convertTaobao(rootNode);
-    } else if (currentSite === "aliexpress") {
-      convertAliExpress(rootNode);
-    }
-  }
-  function convertTaobao(rootNode) {
-    const priceElements = rootNode.querySelectorAll(".price-value:not([data-converted])");
-    priceElements.forEach(
-(el) => {
-        const text = el.textContent?.trim() || "";
-        const cny = parseFloat(text.replace(/,/g, ""));
-        if (!isNaN(cny)) {
-          const krw = Math.round(cny * currentRate).toLocaleString("ko-KR");
-          const krwSpan = document.createElement("span");
-          krwSpan.textContent = ` (₩${krw})`;
-          krwSpan.style.color = "#ff5000";
-          krwSpan.style.fontSize = "1.1em";
-          krwSpan.style.marginLeft = "4px";
-          krwSpan.style.fontWeight = "bold";
-          if (el.parentNode) {
-            el.parentNode.insertBefore(krwSpan, el.nextSibling);
-          }
-          el.dataset.converted = "true";
-        }
-      }
-    );
-  }
-  function convertAliExpress(rootNode) {
     const walker = document.createTreeWalker(rootNode, NodeFilter.SHOW_TEXT);
     let node;
     const nodesToModify = [];
@@ -3017,29 +3018,36 @@ context.l
 (n) => {
         const currencySpan = n.parentNode;
         if (!currencySpan) return;
-        const priceWrapper = currencySpan.parentNode;
-        if (!priceWrapper ||
-priceWrapper.dataset.converted) return;
-        const fullText = priceWrapper.textContent;
-        if (!fullText) return;
-        const regex = /(?:US\s*)?\$?\s*([0-9,.]+)/;
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          const usd = parseFloat(match[1].replace(/,/g, ""));
-          if (!isNaN(usd)) {
-            const krw = Math.round(usd * currentRate).toLocaleString("ko-KR");
-            const krwSpan = document.createElement("span");
-            krwSpan.textContent = ` (₩${krw})`;
-            krwSpan.style.color = "#ff5000";
-            krwSpan.style.fontSize = "0.9em";
-            krwSpan.style.marginLeft = "4px";
-            krwSpan.style.fontWeight = "bold";
-            priceWrapper.appendChild(krwSpan);
-            priceWrapper.dataset.converted = "true";
-          }
-        }
+        const priceWrapper = (
+currencySpan.parentNode
+        );
+        if (!priceWrapper || priceWrapper.dataset.converted) return;
+        convertSingleWrapper(priceWrapper);
       }
     );
+  }
+  function convertSingleWrapper(priceWrapper) {
+    if (priceWrapper.dataset.converted) return;
+    const fullText = Array.from(priceWrapper.childNodes).filter((n) => !(n.nodeType === Node.ELEMENT_NODE &&
+n.dataset.krw)).map((n) => n.textContent ?? "").join("");
+    if (!fullText) return;
+    const regex = /(?:US\s*)?\$?\s*([0-9,.]+)/;
+    const match = fullText.match(regex);
+    if (match && match[1]) {
+      const usd = parseFloat(match[1].replace(/,/g, ""));
+      if (!isNaN(usd)) {
+        const krw = Math.round(usd * currentRate).toLocaleString("ko-KR");
+        const krwSpan = document.createElement("span");
+        krwSpan.textContent = ` (₩${krw})`;
+        krwSpan.style.color = "#ff5000";
+        krwSpan.style.fontSize = "0.9em";
+        krwSpan.style.marginLeft = "4px";
+        krwSpan.style.fontWeight = "bold";
+        krwSpan.dataset.krw = "true";
+        priceWrapper.appendChild(krwSpan);
+        priceWrapper.dataset.converted = "true";
+      }
+    }
   }
   var root_1 = from_html(`<div class="converter-widget svelte-1n46o8q"><span> </span></div>`);
   function App($$anchor, $$props) {
