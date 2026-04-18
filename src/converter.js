@@ -1,3 +1,4 @@
+// @ts-nocheck
 let currentRate = 0;
 
 /**

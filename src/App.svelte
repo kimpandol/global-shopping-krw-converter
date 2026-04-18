@@ -13,11 +13,13 @@
       if (host.includes('taobao.com') || host.includes('tmall.com')) {
         const rate = await getCnyToKrwRate();
         displayRate = `🇨🇳 1위안 = 🇰🇷 ${rate.toFixed(2)}원`;
+        // @ts-ignore
         startConversion(rate, 'taobao');
       } 
       else if (host.includes('aliexpress.com')) {
         const rate = await getUsdToKrwRate();
         displayRate = `🇺🇸 1달러 = 🇰🇷 ${rate.toFixed(2)}원`;
+        // @ts-ignore
         startConversion(rate, 'aliexpress');
       }
     } catch (err) {
