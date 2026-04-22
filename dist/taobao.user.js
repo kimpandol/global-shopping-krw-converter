@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       Global KRW Converter (Taobao & Ali)
 // @namespace  npm/vite-plugin-monkey
-// @version    0.0.1
+// @version    0.0.2
 // @match      *://*.taobao.com/*
 // @match      *://*.tmall.com/*
 // @match      *://*.aliexpress.com/*
@@ -2965,28 +2965,30 @@ context.l
       const wrappersToReconvert = new Set();
       for (let mutation of mutations) {
         if (mutation.type === "childList") {
-          for (let node of mutation.addedNodes) {
-            if (node.nodeType === Node.ELEMENT_NODE && !
+          const involvedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
+          const isOurMutation = involvedNodes.length > 0 && involvedNodes.every((n) => n.nodeType === Node.ELEMENT_NODE &&
+n.dataset.krw);
+          if (isOurMutation) continue;
+          const target = (
+mutation.target
+          );
+          const convertedAncestor = findConvertedAncestor(target);
+          if (convertedAncestor) {
+            wrappersToReconvert.add(convertedAncestor);
+          } else {
+            for (let node of mutation.addedNodes) {
+              if (node.nodeType === Node.ELEMENT_NODE && !
 node.dataset.krw) {
-              convertDOM(
+                convertDOM(
 node
-              );
+                );
+              }
             }
           }
         } else if (mutation.type === "characterData") {
-          let parent = (
-mutation.target.parentNode
-          );
-          while (parent && parent !== document.body) {
-            if (
-parent.dataset?.converted
-            ) {
-              wrappersToReconvert.add(
-parent
-              );
-              break;
-            }
-            parent = parent.parentNode;
+          const convertedAncestor = findConvertedAncestor(mutation.target);
+          if (convertedAncestor) {
+            wrappersToReconvert.add(convertedAncestor);
           }
         }
       }
@@ -2997,6 +2999,21 @@ parent
       subtree: true,
       characterData: true
 });
+  }
+  function findConvertedAncestor(node) {
+    let cur = (
+node
+    );
+    while (cur && cur !== document.body) {
+      if (cur.nodeType === Node.ELEMENT_NODE &&
+cur.dataset?.converted) {
+        return (
+cur
+        );
+      }
+      cur = cur.parentNode;
+    }
+    return null;
   }
   function reconvert(priceWrapper) {
     const existingKrwSpan = priceWrapper.querySelector('[data-krw="true"]');
@@ -3010,7 +3027,7 @@ parent
     let node;
     const nodesToModify = [];
     while (node = walker.nextNode()) {
-      if (node.nodeValue && (node.nodeValue.includes("US $") || node.nodeValue.trim() === "$")) {
+      if (node.nodeValue && node.nodeValue.includes("US $")) {
         nodesToModify.push(node);
       }
     }
@@ -3031,7 +3048,7 @@ currencySpan.parentNode
     const fullText = Array.from(priceWrapper.childNodes).filter((n) => !(n.nodeType === Node.ELEMENT_NODE &&
 n.dataset.krw)).map((n) => n.textContent ?? "").join("");
     if (!fullText) return;
-    const regex = /(?:US\s*)?\$?\s*([0-9,.]+)/;
+    const regex = /US\s*\$\s*([0-9,.]+)/;
     const match = fullText.match(regex);
     if (match && match[1]) {
       const usd = parseFloat(match[1].replace(/,/g, ""));
